@@ -15,8 +15,10 @@ const roomIdDisplay = document.getElementById('room-id-display');
 const gameRoomId = document.getElementById('game-room-id');
 const board = document.getElementById('board');
 const turnIndicator = document.getElementById('turn-indicator');
+const btnUndo = document.getElementById('btn-undo');
 const btnCopyRoom = document.getElementById('btn-copy-room');
 const btnLeave = document.getElementById('btn-leave');
+
 const btnBackToMenu = document.getElementById('btn-back-to-menu');
 const gameOverTitle = document.getElementById('game-over-title');
 const gameOverMessage = document.getElementById('game-over-message');
@@ -88,6 +90,11 @@ socket.on('error', (message) => {
     showToast(message, 'error');
 });
 
+socket.on('undoSuccess', () => {
+    showToast('Ход отменён!', 'success');
+});
+
+
 // UI Event handlers
 btnPlayAI.addEventListener('click', () => {
     socket.emit('playWithAI');
@@ -128,9 +135,16 @@ btnCopyRoom.addEventListener('click', () => {
     });
 });
 
+btnUndo.addEventListener('click', () => {
+    if (!gameOver && gameStarted) {
+        socket.emit('undoMove');
+    }
+});
+
 btnLeave.addEventListener('click', () => {
     location.reload();
 });
+
 
 btnBackToMenu.addEventListener('click', () => {
     location.reload();

@@ -124,6 +124,18 @@ body {
     background: #c0392b;
 }
 
+.btn-undo {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffd200;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.btn-undo:hover {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: #ffd200;
+}
+
+
 /* Join Form */
 .join-form {
     margin-top: 20px;
