@@ -128,6 +128,160 @@ function checkWinner(board) {
     return null;
 }
 
+// AI Bot logic
+function getAIMove(board, color) {
+    const allMoves = getAllValidMoves(board, color);
+    if (allMoves.length === 0) return null;
+
+    // Priority 1: Captures
+    const captures = allMoves.filter(m => m.captured);
+    if (captures.length > 0) {
+        // Find capture that captures the most (chain)
+        let bestCapture = null;
+        let maxCaptures = 0;
+        for (const move of captures) {
+            const newBoard = applyMove(board, move);
+            // Check if we can chain more captures
+            const chainCount = countChainCaptures(newBoard, move.to.row, move.to.col, color, 1);
+            if (chainCount > maxCaptures) {
+                maxCaptures = chainCount;
+                bestCapture = move;
+            }
+        }
+        return bestCapture;
+    }
+
+    // Priority 2: Moves that become king
+    const kingMoves = allMoves.filter(m => {
+        const piece = board[m.from.row][m.from.col];
+        if (piece.type === 'king') return false;
+        return (color === 'white' && m.to.row === 0) || (color === 'black' && m.to.row === 7);
+    });
+    if (kingMoves.length > 0) {
+        return kingMoves[Math.floor(Math.random() * kingMoves.length)];
+    }
+
+    // Priority 3: Random move (prefer center and forward)
+    // Score moves: forward is better, center is better
+    let bestScore = -Infinity;
+    let bestMove = allMoves[0];
+    for (const move of allMoves) {
+        let score = 0;
+        // Prefer moving forward
+        if (color === 'white') score += (8 - move.to.row);
+        else score += move.to.row;
+        // Prefer center columns
+        score += 4 - Math.abs(move.to.col - 3.5);
+        // Add some randomness
+        score += Math.random() * 2;
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+        }
+    }
+    return bestMove;
+}
+
+function countChainCaptures(board, row, col, color, count) {
+    const moves = getValidMoves(board, row, col);
+    const captures = moves.filter(m => m.captured);
+    if (captures.length === 0) return count;
+    
+    let maxCount = count;
+    for (const move of captures) {
+        const newBoard = applyMove(board, move);
+        const chainCount = countChainCaptures(newBoard, move.to.row, move.to.col, color, count + 1);
+        if (chainCount > maxCount) maxCount = chainCount;
+    }
+    return maxCount;
+}
+
+function makeAIMove(room) {
+    const aiColor = room.currentTurn;
+    const move = getAIMove(room.board, aiColor);
+    if (!move) {
+        room.gameOver = true;
+        room.winner = aiColor === 'white' ? 'black' : 'white';
+        io.to(room.id).emit('gameState', {
+            board: room.board,
+            currentTurn: room.currentTurn,
+            gameStarted: true,
+            gameOver: true,
+            winner: room.winner,
+            players: room.players.map(p => p.color),
+            lastMove: null
+        });
+        return;
+    }
+
+    room.board = applyMove(room.board, move);
+    room.lastMove = move;
+
+    // Check for winner
+    const winner = checkWinner(room.board);
+    if (winner) {
+        room.gameOver = true;
+        room.winner = winner;
+        io.to(room.id).emit('gameState', {
+            board: room.board,
+            currentTurn: room.currentTurn,
+            gameStarted: true,
+            gameOver: true,
+            winner: winner,
+            players: room.players.map(p => p.color),
+            lastMove: move
+        });
+        return;
+    }
+
+    // Check for additional capture (chain)
+    if (move.captured) {
+        const additionalCaptures = getValidMoves(room.board, move.to.row, move.to.col);
+        const hasMoreCaptures = additionalCaptures.some(m => m.captured);
+        if (hasMoreCaptures) {
+            // AI continues capturing
+            io.to(room.id).emit('gameState', {
+                board: room.board,
+                currentTurn: aiColor,
+                gameStarted: true,
+                gameOver: false,
+                winner: null,
+                players: room.players.map(p => p.color),
+                lastMove: move,
+                mustContinueCapture: { row: move.to.row, col: move.to.col }
+            });
+            // AI makes next capture after a short delay
+            setTimeout(() => makeAIMove(room), 500);
+            return;
+        }
+    }
+
+    // Switch turn
+    room.currentTurn = room.currentTurn === 'white' ? 'black' : 'white';
+
+    // Check if next player has any moves
+    const nextMoves = getAllValidMoves(room.board, room.currentTurn);
+    if (nextMoves.length === 0) {
+        room.gameOver = true;
+        room.winner = room.currentTurn === 'white' ? 'black' : 'white';
+    }
+
+    io.to(room.id).emit('gameState', {
+        board: room.board,
+        currentTurn: room.currentTurn,
+        gameStarted: true,
+        gameOver: room.gameOver,
+        winner: room.winner,
+        players: room.players.map(p => p.color),
+        lastMove: move
+    });
+
+    // If it's AI's turn again, make another move
+    if (!room.gameOver && room.currentTurn === aiColor) {
+        setTimeout(() => makeAIMove(room), 500);
+    }
+}
+
 function createRoom() {
     const roomId = uuidv4().substring(0, 6);
     rooms[roomId] = {
@@ -138,10 +292,12 @@ function createRoom() {
         gameStarted: false,
         gameOver: false,
         winner: null,
-        lastMove: null
+        lastMove: null,
+        isAIGame: false
     };
     return roomId;
 }
+
 
 io.on('connection', (socket) => {
     console.log(`Player connected: ${socket.id}`);
@@ -162,6 +318,31 @@ io.on('connection', (socket) => {
         });
         console.log(`Room created: ${roomId} by ${socket.id}`);
     });
+
+    socket.on('playWithAI', () => {
+        const roomId = createRoom();
+        rooms[roomId].isAIGame = true;
+        socket.join(roomId);
+        // Player plays as white, AI plays as black
+        rooms[roomId].players.push({ id: socket.id, color: 'white' });
+        rooms[roomId].players.push({ id: 'ai', color: 'black' });
+        rooms[roomId].gameStarted = true;
+        rooms[roomId].currentTurn = 'white';
+        
+        socket.emit('roomCreated', { roomId, color: 'white', isAI: true });
+        socket.emit('yourColor', 'white');
+        socket.emit('gameState', {
+            board: rooms[roomId].board,
+            currentTurn: rooms[roomId].currentTurn,
+            gameStarted: true,
+            gameOver: false,
+            winner: null,
+            players: rooms[roomId].players.map(p => p.color),
+            isAI: true
+        });
+        console.log(`AI game created: ${roomId} by ${socket.id}`);
+    });
+
 
     socket.on('joinRoom', (roomId) => {
         const room = rooms[roomId];
@@ -310,7 +491,13 @@ io.on('connection', (socket) => {
                     players: room.players.map(p => p.color),
                     lastMove: move
                 });
+
+                // If playing against AI and it's AI's turn, make AI move
+                if (!room.gameOver && room.isAIGame && room.currentTurn === 'black') {
+                    setTimeout(() => makeAIMove(room), 500);
+                }
                 break;
+
             }
         }
     });

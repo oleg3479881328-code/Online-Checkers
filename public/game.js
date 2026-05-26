@@ -4,6 +4,7 @@ const socket = io();
 const menuScreen = document.getElementById('menu-screen');
 const gameScreen = document.getElementById('game-screen');
 const gameOverModal = document.getElementById('game-over-modal');
+const btnPlayAI = document.getElementById('btn-play-ai');
 const btnCreateRoom = document.getElementById('btn-create-room');
 const btnJoinRoom = document.getElementById('btn-join-room');
 const joinForm = document.getElementById('join-form');
@@ -29,17 +30,26 @@ let gameStarted = false;
 let gameOver = false;
 let roomId = null;
 let mustContinueCapture = null;
+let isAIGame = false;
 
 // Socket event handlers
 socket.on('roomCreated', (data) => {
     roomId = data.roomId;
     myColor = data.color;
-    roomIdDisplay.textContent = data.roomId;
+    isAIGame = data.isAI || false;
     gameRoomId.textContent = data.roomId;
-    roomInfo.classList.remove('hidden');
-    joinForm.classList.add('hidden');
-    showToast(`Комната создана! ID: ${data.roomId}`, 'success');
+    
+    if (data.isAI) {
+        // AI game starts immediately, no waiting
+        showToast('Игра с компьютером началась!', 'success');
+    } else {
+        roomIdDisplay.textContent = data.roomId;
+        roomInfo.classList.remove('hidden');
+        joinForm.classList.add('hidden');
+        showToast(`Комната создана! ID: ${data.roomId}`, 'success');
+    }
 });
+
 
 socket.on('yourColor', (color) => {
     myColor = color;
@@ -79,9 +89,14 @@ socket.on('error', (message) => {
 });
 
 // UI Event handlers
+btnPlayAI.addEventListener('click', () => {
+    socket.emit('playWithAI');
+});
+
 btnCreateRoom.addEventListener('click', () => {
     socket.emit('createRoom');
 });
+
 
 btnJoinRoom.addEventListener('click', () => {
     joinForm.classList.toggle('hidden');
