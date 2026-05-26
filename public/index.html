@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Checkers - Русские шашки</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Menu Screen -->
+        <div id="menu-screen" class="screen active">
+            <div class="menu-container">
+                <h1 class="game-title">♟ Русские шашки</h1>
+                <p class="subtitle">Online Checkers</p>
+                <div class="menu-buttons">
+                    <button id="btn-create-room" class="btn btn-primary">Создать комнату</button>
+                    <button id="btn-join-room" class="btn btn-secondary">Присоединиться к комнате</button>
+                </div>
+                <div id="join-form" class="join-form hidden">
+                    <input type="text" id="room-input" placeholder="Введите ID комнаты" maxlength="6">
+                    <button id="btn-join-submit" class="btn btn-small">Присоединиться</button>
+                </div>
+                <div id="room-info" class="room-info hidden">
+                    <p>ID комнаты: <span id="room-id-display" class="room-id"></span></p>
+                    <p class="waiting-text">Ожидание второго игрока...</p>
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen hidden">
+            <div class="game-header">
+                <div class="player-info">
+                    <div class="player white-player">
+                        <span class="piece-icon white-icon"></span>
+                        <span>Белые</span>
+                    </div>
+                    <div class="vs">VS</div>
+                    <div class="player black-player">
+                        <span class="piece-icon black-icon"></span>
+                        <span>Чёрные</span>
+                    </div>
+                </div>
+                <div class="turn-info">
+                    <span id="turn-indicator">Ход: Белых</span>
+                </div>
+                <div class="room-info-bar">
+                    Комната: <span id="game-room-id"></span>
+                </div>
+            </div>
+            <div class="board-container">
+                <div id="board" class="board"></div>
+            </div>
+            <div class="game-footer">
+                <button id="btn-copy-room" class="btn btn-small">Копировать ID комнаты</button>
+                <button id="btn-leave" class="btn btn-small btn-danger">Покинуть</button>
+            </div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="game-over-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2 id="game-over-title">Игра окончена!</h2>
+                <p id="game-over-message"></p>
+                <button id="btn-back-to-menu" class="btn btn-primary">Вернуться в меню</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
