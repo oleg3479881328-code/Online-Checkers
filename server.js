@@ -60,9 +60,9 @@ function getValidMoves(board, row, col) {
         }
     }
 
-    // If captures exist, only return captures (must capture)
-    if (captures.length > 0) return captures;
-    return moves;
+    // Return both regular moves and captures (no forced capture)
+    return [...moves, ...captures];
+
 }
 
 function getAllValidMoves(board, color) {
@@ -425,14 +425,8 @@ io.on('connection', (socket) => {
                     return;
                 }
 
-                // Check if must capture
-                const mustCapture = hasAnyCapture(room.board, player.color);
-                if (mustCapture && !move.captured) {
-                    socket.emit('error', 'Вы обязаны бить!');
-                    return;
-                }
-
                 room.board = applyMove(room.board, move);
+
                 room.lastMove = move;
 
                 // Check for winner
