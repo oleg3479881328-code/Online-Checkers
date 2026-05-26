@@ -41,20 +41,70 @@ function getValidMoves(board, row, col) {
 
     const moves = [];
     const captures = [];
-    const directions = piece.type === 'king' ? [[-1,-1],[-1,1],[1,-1],[1,1]] :
-                       piece.color === 'white' ? [[-1,-1],[-1,1]] : [[1,-1],[1,1]];
+    const directions = [[-1,-1],[-1,1],[1,-1],[1,1]];
+    
+    // For regular pieces (men), only one step forward diagonally
+    // For kings, slide any number of squares diagonally
+    const isKing = piece.type === 'king';
 
     for (const [dr, dc] of directions) {
-        const nr = row + dr;
-        const nc = col + dc;
-        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-            if (!board[nr][nc]) {
-                moves.push({ from: { row, col }, to: { row: nr, col: nc }, captured: null });
-            } else if (board[nr][nc].color !== piece.color) {
-                const jr = nr + dr;
-                const jc = nc + dc;
-                if (jr >= 0 && jr < 8 && jc >= 0 && jc < 8 && !board[jr][jc]) {
-                    captures.push({ from: { row, col }, to: { row: jr, col: jc }, captured: { row: nr, col: nc } });
+        // For regular pieces, check if this direction is allowed
+        if (!isKing) {
+            if (piece.color === 'white' && dr === 1) continue; // white moves up (negative row)
+            if (piece.color === 'black' && dr === -1) continue; // black moves down (positive row)
+        }
+
+        if (isKing) {
+            // King slides: move step by step in the direction
+            let nr = row + dr;
+            let nc = col + dc;
+            let foundEnemy = false;
+            let enemyRow = -1, enemyCol = -1;
+
+            while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                if (!board[nr][nc]) {
+                    // Empty square
+                    if (!foundEnemy) {
+                        // Regular move
+                        moves.push({ from: { row, col }, to: { row: nr, col: nc }, captured: null });
+                    } else {
+                        // Can capture the enemy we found earlier and land here
+                        captures.push({ 
+                            from: { row, col }, 
+                            to: { row: nr, col: nc }, 
+                            captured: { row: enemyRow, col: enemyCol } 
+                        });
+                    }
+                } else if (board[nr][nc].color === piece.color) {
+                    // Blocked by own piece - stop this direction
+                    break;
+                } else {
+                    // Enemy piece found
+                    if (!foundEnemy) {
+                        foundEnemy = true;
+                        enemyRow = nr;
+                        enemyCol = nc;
+                    } else {
+                        // Second enemy - can't jump over two
+                        break;
+                    }
+                }
+                nr += dr;
+                nc += dc;
+            }
+        } else {
+            // Regular piece: one step
+            const nr = row + dr;
+            const nc = col + dc;
+            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                if (!board[nr][nc]) {
+                    moves.push({ from: { row, col }, to: { row: nr, col: nc }, captured: null });
+                } else if (board[nr][nc].color !== piece.color) {
+                    const jr = nr + dr;
+                    const jc = nc + dc;
+                    if (jr >= 0 && jr < 8 && jc >= 0 && jc < 8 && !board[jr][jc]) {
+                        captures.push({ from: { row, col }, to: { row: jr, col: jc }, captured: { row: nr, col: nc } });
+                    }
                 }
             }
         }
@@ -64,6 +114,7 @@ function getValidMoves(board, row, col) {
     return [...moves, ...captures];
 
 }
+
 
 function getAllValidMoves(board, color) {
     const allMoves = [];
