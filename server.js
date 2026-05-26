@@ -478,12 +478,15 @@ io.on('connection', (socket) => {
                     return;
                 }
 
-                // Save state before move for undo
-                room.moveHistory.push({
-                    board: cloneBoard(room.board),
-                    currentTurn: room.currentTurn,
-                    lastMove: room.lastMove
-                });
+                // Save state before move for undo (only for real player moves, not AI)
+                if (!room.isAIGame || player.id !== 'ai') {
+                    room.moveHistory.push({
+                        board: cloneBoard(room.board),
+                        currentTurn: room.currentTurn,
+                        lastMove: room.lastMove
+                    });
+                }
+
 
                 room.board = applyMove(room.board, move);
                 room.lastMove = move;
@@ -561,33 +564,13 @@ io.on('connection', (socket) => {
             const room = rooms[roomId];
             const player = room.players.find(p => p.id === socket.id);
             if (player && room.gameStarted && !room.gameOver && room.moveHistory.length > 0) {
-                // In AI mode, undo both AI's last move and player's last move
-                if (room.isAIGame) {
-                    // Undo AI move
-                    const aiState = room.moveHistory.pop();
-                    if (aiState && room.moveHistory.length > 0) {
-                        // Undo player's move too
-                        const playerState = room.moveHistory.pop();
-                        room.board = playerState.board;
-                        room.currentTurn = playerState.currentTurn;
-                        room.lastMove = playerState.lastMove;
-                        room.gameOver = false;
-                        room.winner = null;
-                    } else if (aiState) {
-                        room.board = aiState.board;
-                        room.currentTurn = aiState.currentTurn;
-                        room.lastMove = aiState.lastMove;
-                        room.gameOver = false;
-                        room.winner = null;
-                    }
-                } else {
-                    const state = room.moveHistory.pop();
-                    room.board = state.board;
-                    room.currentTurn = state.currentTurn;
-                    room.lastMove = state.lastMove;
-                    room.gameOver = false;
-                    room.winner = null;
-                }
+                // Undo only 1 move (the last saved state)
+                const state = room.moveHistory.pop();
+                room.board = state.board;
+                room.currentTurn = state.currentTurn;
+                room.lastMove = state.lastMove;
+                room.gameOver = false;
+                room.winner = null;
 
                 io.to(roomId).emit('gameState', {
                     board: room.board,
@@ -603,6 +586,7 @@ io.on('connection', (socket) => {
             }
         }
     });
+
 
     socket.on('disconnect', () => {
 
