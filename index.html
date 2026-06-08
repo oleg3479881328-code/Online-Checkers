@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Online Checkers</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="game-card">
+      <header class="game-header">
+        <div>
+          <p class="eyebrow">Local MVP</p>
+          <h1>Online Checkers</h1>
+          <p class="subtitle">Two players on one device</p>
+        </div>
+        <button id="restartButton" class="restart-button" type="button">Restart game</button>
+      </header>
+
+      <section class="status-panel" aria-live="polite">
+        <div class="status-item">
+          <span class="status-label">Status</span>
+          <strong id="statusText">Red moves first</strong>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Turn</span>
+          <strong id="turnText">Red</strong>
+        </div>
+      </section>
+
+      <div class="board-wrap">
+        <div id="board" class="board" role="grid" aria-label="Checkers board"></div>
+      </div>
+
+      <footer class="game-footer">
+        <p>Click a piece, then click a highlighted square.</p>
+      </footer>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
