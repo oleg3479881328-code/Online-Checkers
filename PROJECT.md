@@ -1,7 +1,7 @@
 # Online Checkers
 
 ## Project status
-Playable local MVP with a computer opponent. Online multiplayer is deferred until the rules engine and browser interaction are stable.
+Playable local MVP with a computer opponent and two selectable rulesets. Online multiplayer is deferred until the rules engine and browser interaction are stable.
 
 ## Goal
 Build a browser-based checkers game that begins as a reliable human-versus-computer experience and can later evolve into online multiplayer.
@@ -10,6 +10,7 @@ Build a browser-based checkers game that begins as a reliable human-versus-compu
 - Render an 8×8 checkers board.
 - Place pieces in the standard starting positions.
 - Let the human play red against a computer opponent playing black.
+- Switch between English checkers and Russian-mode rules.
 - Validate legal diagonal moves.
 - Support captures.
 - Enforce mandatory captures.
@@ -20,17 +21,26 @@ Build a browser-based checkers game that begins as a reliable human-versus-compu
 - Block human input while the computer is thinking.
 - Provide a restart button.
 
-## Current ruleset
-The MVP uses English checkers rules:
+## Rulesets
+### English checkers
 - Regular pieces move diagonally forward by one square.
 - Regular pieces capture diagonally forward.
 - Kings move and capture one square diagonally in either direction.
 - Captures are mandatory.
 - Multi-capture sequences must be completed.
 
+### Russian mode
+- Regular pieces move diagonally forward by one square.
+- Regular pieces capture diagonally forward only.
+- Kings move any number of free squares diagonally.
+- Kings capture across distance and may land on any free square beyond the captured piece.
+- Captures are mandatory.
+- Multi-capture sequences must be completed.
+
 ## Computer opponent
 The computer:
 - Generates complete legal turns, including forced multi-capture sequences.
+- Uses the active ruleset when generating moves.
 - Evaluates board positions using material, king value, progress, center control, and mobility.
 - Looks one human reply ahead before selecting a move.
 - Breaks ties randomly so repeated games are not fully deterministic.
@@ -46,7 +56,7 @@ The computer:
 
 ## Later milestones
 ### Milestone 2 — Browser testing and deployment
-- Run manual browser tests for captures, promotions, blocked positions, restart behavior, and mobile layout.
+- Run manual browser tests for captures, promotions, blocked positions, restart behavior, rule switching, and mobile layout.
 - Publish through GitHub Pages.
 
 ### Milestone 3 — Online multiplayer
