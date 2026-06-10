@@ -2,6 +2,8 @@ const boardElement = document.getElementById("board");
 const statusText = document.getElementById("statusText");
 const turnText = document.getElementById("turnText");
 const restartButton = document.getElementById("restartButton");
+const rulesSelect = document.getElementById("rulesSelect");
+const rulesHint = document.getElementById("rulesHint");
 
 const SIZE = 8;
 const HUMAN = "red";
@@ -16,6 +18,7 @@ let mustContinueCapture = false;
 let winner = null;
 let computerThinking = false;
 let computerTimer = null;
+let ruleset = "english";
 
 function createPiece(player) {
   return { player, king: false };
@@ -23,6 +26,44 @@ function createPiece(player) {
 
 function cloneBoard(sourceBoard) {
   return sourceBoard.map((row) => row.map((piece) => (piece ? { ...piece } : null)));
+}
+
+function isInside(row, col) {
+  return row >= 0 && row < SIZE && col >= 0 && col < SIZE;
+}
+
+function diagonalDirections() {
+  return [
+    [-1, -1],
+    [-1, 1],
+    [1, -1],
+    [1, 1],
+  ];
+}
+
+function forwardDirections(piece) {
+  if (piece.king) return diagonalDirections();
+  return piece.player === HUMAN
+    ? [
+        [-1, -1],
+        [-1, 1],
+      ]
+    : [
+        [1, -1],
+        [1, 1],
+      ];
+}
+
+function captureDirections(piece) {
+  if (piece.king) return diagonalDirections();
+  return forwardDirections(piece);
+}
+
+function getRulesHint() {
+  if (ruleset === "russian") {
+    return "Russian mode: regular pieces move and capture forward only. Kings fly diagonally. Captures are mandatory.";
+  }
+  return "English rules: regular pieces move and capture forward. Kings move one square diagonally. Captures are mandatory.";
 }
 
 function resetGame() {
@@ -49,83 +90,119 @@ function resetGame() {
   winner = null;
   computerThinking = false;
   computerTimer = null;
+  rulesHint.textContent = getRulesHint();
   render();
   updateStatus("Your move");
 }
 
-function isInside(row, col) {
-  return row >= 0 && row < SIZE && col >= 0 && col < SIZE;
-}
-
-function directionsFor(piece) {
-  if (piece.king) {
-    return [
-      [-1, -1],
-      [-1, 1],
-      [1, -1],
-      [1, 1],
-    ];
-  }
-
-  return piece.player === HUMAN
-    ? [
-        [-1, -1],
-        [-1, 1],
-      ]
-    : [
-        [1, -1],
-        [1, 1],
-      ];
-}
-
-function getMovesForPiece(state, row, col, captureOnly = false) {
+function getSimpleMovesForPiece(state, row, col) {
   const piece = state[row][col];
   if (!piece) return [];
 
+  if (piece.king && ruleset === "russian") {
+    const moves = [];
+    for (const [rowStep, colStep] of diagonalDirections()) {
+      let nextRow = row + rowStep;
+      let nextCol = col + colStep;
+      while (isInside(nextRow, nextCol) && !state[nextRow][nextCol]) {
+        moves.push({ row: nextRow, col: nextCol, capture: null });
+        nextRow += rowStep;
+        nextCol += colStep;
+      }
+    }
+    return moves;
+  }
+
   const moves = [];
+  for (const [rowStep, colStep] of forwardDirections(piece)) {
+    const nextRow = row + rowStep;
+    const nextCol = col + colStep;
+    if (isInside(nextRow, nextCol) && !state[nextRow][nextCol]) {
+      moves.push({ row: nextRow, col: nextCol, capture: null });
+    }
+  }
+  return moves;
+}
 
-  for (const [rowStep, colStep] of directionsFor(piece)) {
-    const adjacentRow = row + rowStep;
-    const adjacentCol = col + colStep;
-    if (!isInside(adjacentRow, adjacentCol)) continue;
+function getCaptureMovesForPiece(state, row, col) {
+  const piece = state[row][col];
+  if (!piece) return [];
 
-    const adjacentPiece = state[adjacentRow][adjacentCol];
+  if (piece.king && ruleset === "russian") {
+    const moves = [];
 
-    if (!adjacentPiece && !captureOnly) {
-      moves.push({ row: adjacentRow, col: adjacentCol, capture: null });
-      continue;
+    for (const [rowStep, colStep] of diagonalDirections()) {
+      let nextRow = row + rowStep;
+      let nextCol = col + colStep;
+      let enemy = null;
+
+      while (isInside(nextRow, nextCol)) {
+        const occupant = state[nextRow][nextCol];
+
+        if (!occupant) {
+          if (enemy) {
+            moves.push({
+              row: nextRow,
+              col: nextCol,
+              capture: enemy,
+            });
+          }
+          nextRow += rowStep;
+          nextCol += colStep;
+          continue;
+        }
+
+        if (occupant.player === piece.player || enemy) break;
+
+        enemy = { row: nextRow, col: nextCol };
+        nextRow += rowStep;
+        nextCol += colStep;
+      }
     }
 
+    return moves;
+  }
+
+  const moves = [];
+  for (const [rowStep, colStep] of captureDirections(piece)) {
+    const enemyRow = row + rowStep;
+    const enemyCol = col + colStep;
     const landingRow = row + rowStep * 2;
     const landingCol = col + colStep * 2;
 
     if (
-      adjacentPiece &&
-      adjacentPiece.player !== piece.player &&
+      isInside(enemyRow, enemyCol) &&
       isInside(landingRow, landingCol) &&
+      state[enemyRow][enemyCol] &&
+      state[enemyRow][enemyCol].player !== piece.player &&
       !state[landingRow][landingCol]
     ) {
       moves.push({
         row: landingRow,
         col: landingCol,
-        capture: { row: adjacentRow, col: adjacentCol },
+        capture: { row: enemyRow, col: enemyCol },
       });
     }
   }
 
-  return captureOnly ? moves.filter((move) => move.capture) : moves;
+  return moves;
+}
+
+function getMovesForPiece(state, row, col, captureOnly = false) {
+  const captures = getCaptureMovesForPiece(state, row, col);
+  if (captureOnly || captures.length > 0) return captures;
+  return getSimpleMovesForPiece(state, row, col);
 }
 
 function playerHasCapture(state, player) {
   for (let row = 0; row < SIZE; row += 1) {
     for (let col = 0; col < SIZE; col += 1) {
       const piece = state[row][col];
-      if (piece?.player === player && getMovesForPiece(state, row, col, true).length > 0) {
+      if (piece?.player === player && getCaptureMovesForPiece(state, row, col).length > 0) {
         return true;
       }
     }
   }
-
   return false;
 }
 
@@ -138,7 +215,11 @@ function getLegalMovesForPlayer(state, player) {
       const piece = state[row][col];
       if (piece?.player !== player) continue;
 
-      for (const target of getMovesForPiece(state, row, col, captureRequired)) {
+      const targets = captureRequired
+        ? getCaptureMovesForPiece(state, row, col)
+        : getSimpleMovesForPiece(state, row, col);
+
+      for (const target of targets) {
         moves.push({ from: { row, col }, target });
       }
     }
@@ -151,8 +232,9 @@ function getSelectableMoves(row, col) {
   const piece = board[row][col];
   if (!piece || piece.player !== currentPlayer) return [];
 
-  const captureRequired = playerHasCapture(board, currentPlayer);
-  return getMovesForPiece(board, row, col, captureRequired);
+  return playerHasCapture(board, currentPlayer)
+    ? getCaptureMovesForPiece(board, row, col)
+    : getSimpleMovesForPiece(board, row, col);
 }
 
 function selectPiece(row, col) {
@@ -164,16 +246,16 @@ function selectPiece(row, col) {
   selected = { row, col };
   legalTargets = moves;
   render();
-
-  if (playerHasCapture(board, currentPlayer)) {
-    updateStatus("You must capture");
-  } else {
-    updateStatus("Choose a highlighted square");
-  }
+  updateStatus(playerHasCapture(board, currentPlayer) ? "You must capture" : "Choose a highlighted square");
 }
 
 function findLegalTarget(row, col) {
   return legalTargets.find((move) => move.row === row && move.col === col);
+}
+
+function promoteIfNeeded(piece, row) {
+  if (piece.player === HUMAN && row === 0) piece.king = true;
+  if (piece.player === COMPUTER && row === SIZE - 1) piece.king = true;
 }
 
 function applySingleMove(state, source, target) {
@@ -191,18 +273,13 @@ function applySingleMove(state, source, target) {
   return nextState;
 }
 
-function promoteIfNeeded(piece, row) {
-  if (piece.player === HUMAN && row === 0) piece.king = true;
-  if (piece.player === COMPUTER && row === SIZE - 1) piece.king = true;
-}
-
 function moveSelectedPiece(target) {
   if (!selected || winner || computerThinking || currentPlayer !== HUMAN) return;
 
   board = applySingleMove(board, selected, target);
 
   if (target.capture) {
-    const followUpCaptures = getMovesForPiece(board, target.row, target.col, true);
+    const followUpCaptures = getCaptureMovesForPiece(board, target.row, target.col);
     if (followUpCaptures.length > 0) {
       selected = { row: target.row, col: target.col };
       legalTargets = followUpCaptures;
@@ -217,6 +294,21 @@ function moveSelectedPiece(target) {
   selected = null;
   legalTargets = [];
   finishTurn();
+}
+
+function getWinningPlayer(state, playerToMove) {
+  const otherPlayer = playerToMove === HUMAN ? COMPUTER : HUMAN;
+  let pieceCount = 0;
+
+  for (let row = 0; row < SIZE; row += 1) {
+    for (let col = 0; col < SIZE; col += 1) {
+      if (state[row][col]?.player === playerToMove) pieceCount += 1;
+    }
+  }
+
+  if (pieceCount === 0) return otherPlayer;
+  if (getLegalMovesForPlayer(state, playerToMove).length === 0) return otherPlayer;
+  return null;
 }
 
 function finishTurn() {
@@ -236,53 +328,30 @@ function finishTurn() {
 
   if (currentPlayer === COMPUTER) {
     scheduleComputerTurn();
-  } else if (playerHasCapture(board, HUMAN)) {
-    updateStatus("Your move: capture required");
   } else {
-    updateStatus("Your move");
+    updateStatus(playerHasCapture(board, HUMAN) ? "Your move: capture required" : "Your move");
   }
 }
 
-function getWinningPlayer(state, playerToMove) {
-  const opponent = playerToMove;
-  const otherPlayer = opponent === HUMAN ? COMPUTER : HUMAN;
-
-  let opponentPieces = 0;
-  for (let row = 0; row < SIZE; row += 1) {
-    for (let col = 0; col < SIZE; col += 1) {
-      if (state[row][col]?.player === opponent) opponentPieces += 1;
-    }
-  }
-
-  if (opponentPieces === 0) return otherPlayer;
-  if (getLegalMovesForPlayer(state, opponent).length === 0) return otherPlayer;
-  return null;
-}
-
-function getCaptureSequences(state, source, player) {
-  const captures = getMovesForPiece(state, source.row, source.col, true);
+function getCaptureSequences(state, source) {
+  const captures = getCaptureMovesForPiece(state, source.row, source.col);
   if (captures.length === 0) return [];
 
   const sequences = [];
-
   for (const target of captures) {
     const nextState = applySingleMove(state, source, target);
     const nextSource = { row: target.row, col: target.col };
-    const continuations = getCaptureSequences(nextState, nextSource, player);
+    const continuations = getCaptureSequences(nextState, nextSource);
 
     if (continuations.length === 0) {
-      sequences.push({
-        steps: [{ from: source, target }],
-        state: nextState,
-      });
-      continue;
-    }
-
-    for (const continuation of continuations) {
-      sequences.push({
-        steps: [{ from: source, target }, ...continuation.steps],
-        state: continuation.state,
-      });
+      sequences.push({ steps: [{ from: source, target }], state: nextState });
+    } else {
+      for (const continuation of continuations) {
+        sequences.push({
+          steps: [{ from: source, target }, ...continuation.steps],
+          state: continuation.state,
+        });
+      }
     }
   }
 
@@ -301,7 +370,7 @@ function getCompleteTurnOptions(state, player) {
       const key = `${move.from.row},${move.from.col}`;
       if (visitedSources.has(key)) continue;
       visitedSources.add(key);
-      options.push(...getCaptureSequences(state, move.from, player));
+      options.push(...getCaptureSequences(state, move.from));
     }
 
     return options;
@@ -321,11 +390,10 @@ function evaluateBoard(state) {
       const piece = state[row][col];
       if (!piece) continue;
 
-      const value = piece.king ? 175 : 100;
+      const value = piece.king ? (ruleset === "russian" ? 220 : 175) : 100;
       const progress = piece.king ? 0 : piece.player === COMPUTER ? row * 4 : (SIZE - 1 - row) * 4;
       const centerBonus = col >= 2 && col <= 5 && row >= 2 && row <= 5 ? 6 : 0;
       const positionalValue = value + progress + centerBonus;
-
       score += piece.player === COMPUTER ? positionalValue : -positionalValue;
     }
   }
@@ -340,8 +408,8 @@ function chooseComputerTurn(options) {
   let bestOptions = [];
 
   for (const option of options) {
-    const humanReplyOptions = getCompleteTurnOptions(option.state, HUMAN);
-    const replyScores = humanReplyOptions.map((reply) => evaluateBoard(reply.state));
+    const humanReplies = getCompleteTurnOptions(option.state, HUMAN);
+    const replyScores = humanReplies.map((reply) => evaluateBoard(reply.state));
     const worstReplyScore = replyScores.length > 0 ? Math.min(...replyScores) : evaluateBoard(option.state) + 10000;
 
     if (worstReplyScore > bestScore) {
@@ -423,13 +491,8 @@ function render() {
       square.disabled = Boolean(winner || computerThinking || currentPlayer !== HUMAN);
       square.addEventListener("click", () => handleSquareClick(row, col));
 
-      if (selected?.row === row && selected?.col === col) {
-        square.classList.add("selected");
-      }
-
-      if (legalTargets.some((move) => move.row === row && move.col === col)) {
-        square.classList.add("legal");
-      }
+      if (selected?.row === row && selected?.col === col) square.classList.add("selected");
+      if (legalTargets.some((move) => move.row === row && move.col === col)) square.classList.add("legal");
 
       const piece = board[row][col];
       if (piece) {
@@ -443,13 +506,7 @@ function render() {
     }
   }
 
-  if (winner) {
-    turnText.textContent = "Game over";
-  } else if (currentPlayer === HUMAN) {
-    turnText.textContent = "You";
-  } else {
-    turnText.textContent = "Computer";
-  }
+  turnText.textContent = winner ? "Game over" : currentPlayer === HUMAN ? "You" : "Computer";
 }
 
 function updateStatus(message) {
@@ -457,4 +514,9 @@ function updateStatus(message) {
 }
 
 restartButton.addEventListener("click", resetGame);
+rulesSelect.addEventListener("change", (event) => {
+  ruleset = event.target.value;
+  resetGame();
+});
+
 resetGame();
