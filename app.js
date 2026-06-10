@@ -14,6 +14,7 @@ let board = [];
 let currentPlayer = HUMAN;
 let selected = null;
 let legalTargets = [];
+let bestTargets = [];
 let mustContinueCapture = false;
 let winner = null;
 let computerThinking = false;
@@ -86,6 +87,7 @@ function resetGame() {
   currentPlayer = HUMAN;
   selected = null;
   legalTargets = [];
+  bestTargets = [];
   mustContinueCapture = false;
   winner = null;
   computerThinking = false;
@@ -245,12 +247,17 @@ function selectPiece(row, col) {
 
   selected = { row, col };
   legalTargets = moves;
+  bestTargets = getBestTargetsForSelection();
   render();
-  updateStatus(playerHasCapture(board, currentPlayer) ? "You must capture" : "Choose a highlighted square");
+  updateStatus(playerHasCapture(board, currentPlayer) ? "You must capture. Green is the suggested target." : "Choose a highlighted square. Green is the suggested target.");
 }
 
 function findLegalTarget(row, col) {
   return legalTargets.find((move) => move.row === row && move.col === col);
+}
+
+function isBestTarget(row, col) {
+  return bestTargets.some((move) => move.row === row && move.col === col);
 }
 
 function promoteIfNeeded(piece, row) {
@@ -283,9 +290,10 @@ function moveSelectedPiece(target) {
     if (followUpCaptures.length > 0) {
       selected = { row: target.row, col: target.col };
       legalTargets = followUpCaptures;
+      bestTargets = getBestTargetsForSelection();
       mustContinueCapture = true;
       render();
-      updateStatus("Continue capturing");
+      updateStatus("Continue capturing. Green is the suggested target.");
       return;
     }
   }
@@ -293,6 +301,7 @@ function moveSelectedPiece(target) {
   mustContinueCapture = false;
   selected = null;
   legalTargets = [];
+  bestTargets = [];
   finishTurn();
 }
 
@@ -403,6 +412,47 @@ function evaluateBoard(state) {
   return score;
 }
 
+function scoreHumanFinishedTurn(state) {
+  const winningPlayer = getWinningPlayer(state, COMPUTER);
+  if (winningPlayer === HUMAN) return Infinity;
+  if (winningPlayer === COMPUTER) return -Infinity;
+
+  const computerOptions = getCompleteTurnOptions(state, COMPUTER);
+  if (computerOptions.length === 0) return Infinity;
+
+  const bestComputerScore = Math.max(...computerOptions.map((option) => evaluateBoard(option.state)));
+  return -bestComputerScore;
+}
+
+function scoreHumanTarget(target) {
+  if (!selected) return -Infinity;
+
+  const afterTarget = applySingleMove(board, selected, target);
+  if (!target.capture) return scoreHumanFinishedTurn(afterTarget);
+
+  const followUpCaptures = getCaptureMovesForPiece(afterTarget, target.row, target.col);
+  if (followUpCaptures.length === 0) return scoreHumanFinishedTurn(afterTarget);
+
+  const continuations = getCaptureSequences(afterTarget, { row: target.row, col: target.col });
+  if (continuations.length === 0) return scoreHumanFinishedTurn(afterTarget);
+
+  return Math.max(...continuations.map((continuation) => scoreHumanFinishedTurn(continuation.state)));
+}
+
+function getBestTargetsForSelection() {
+  if (!selected || legalTargets.length === 0) return [];
+
+  const scoredTargets = legalTargets.map((target) => ({
+    target,
+    score: scoreHumanTarget(target),
+  }));
+
+  const bestScore = Math.max(...scoredTargets.map((item) => item.score));
+  return scoredTargets
+    .filter((item) => item.score === bestScore)
+    .map((item) => item.target);
+}
+
 function chooseComputerTurn(options) {
   let bestScore = -Infinity;
   let bestOptions = [];
@@ -451,6 +501,7 @@ function playComputerTurn() {
   computerThinking = false;
   selected = null;
   legalTargets = [];
+  bestTargets = [];
   mustContinueCapture = false;
   finishTurn();
 }
@@ -474,6 +525,7 @@ function handleSquareClick(row, col) {
 
   selected = null;
   legalTargets = [];
+  bestTargets = [];
   render();
 }
 
@@ -493,6 +545,7 @@ function render() {
 
       if (selected?.row === row && selected?.col === col) square.classList.add("selected");
       if (legalTargets.some((move) => move.row === row && move.col === col)) square.classList.add("legal");
+      if (isBestTarget(row, col)) square.classList.add("best");
 
       const piece = board[row][col];
       if (piece) {
