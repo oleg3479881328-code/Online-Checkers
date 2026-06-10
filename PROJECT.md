@@ -1,7 +1,7 @@
 # Online Checkers
 
 ## Project status
-Playable local MVP with a computer opponent and two selectable rulesets. Online multiplayer is deferred until the rules engine and browser interaction are stable.
+Playable local MVP with a computer opponent, two selectable rulesets, and best-move hints. Online multiplayer is deferred until the rules engine and browser interaction are stable.
 
 ## Goal
 Build a browser-based checkers game that begins as a reliable human-versus-computer experience and can later evolve into online multiplayer.
@@ -16,10 +16,17 @@ Build a browser-based checkers game that begins as a reliable human-versus-compu
 - Enforce mandatory captures.
 - Support multi-capture sequences.
 - Promote pieces to kings.
+- Highlight all legal targets for the selected piece.
+- Highlight the suggested best target with a different color.
 - Detect wins when a side has no pieces or no legal moves.
 - Show whose turn it is.
 - Block human input while the computer is thinking.
 - Provide a restart button.
+
+## Move hints
+- Yellow squares show all legal targets for the selected piece.
+- Green squares show the suggested best target or targets.
+- The suggestion is calculated from the board evaluation after the human move and the likely computer reply.
 
 ## Rulesets
 ### English checkers
@@ -56,7 +63,7 @@ The computer:
 
 ## Later milestones
 ### Milestone 2 — Browser testing and deployment
-- Run manual browser tests for captures, promotions, blocked positions, restart behavior, rule switching, and mobile layout.
+- Run manual browser tests for captures, promotions, blocked positions, restart behavior, rule switching, move hints, and mobile layout.
 - Publish through GitHub Pages.
 
 ### Milestone 3 — Online multiplayer
