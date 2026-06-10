@@ -18,6 +18,16 @@
         <button id="restartButton" class="restart-button" type="button">Restart game</button>
       </header>
 
+      <section class="controls-panel">
+        <label class="rules-control" for="rulesSelect">
+          <span class="status-label">Rules</span>
+          <select id="rulesSelect" class="rules-select">
+            <option value="english">English checkers</option>
+            <option value="russian">Russian checkers</option>
+          </select>
+        </label>
+      </section>
+
       <section class="status-panel" aria-live="polite">
         <div class="status-item">
           <span class="status-label">Status</span>
@@ -34,7 +44,7 @@
       </div>
 
       <footer class="game-footer">
-        <p>Rules: English checkers. Captures are mandatory. Click a red piece, then a highlighted square.</p>
+        <p id="rulesHint">English rules: regular pieces move and capture forward. Kings move one square diagonally. Captures are mandatory.</p>
       </footer>
     </section>
   </main>
