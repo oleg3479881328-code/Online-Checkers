@@ -1,50 +1,68 @@
 # Online Checkers
 
 ## Project status
-Bootstrap phase. The repository is being prepared for a first playable local MVP before online multiplayer is added.
+Playable local MVP with a computer opponent. Online multiplayer is deferred until the rules engine and browser interaction are stable.
 
 ## Goal
-Build a browser-based checkers game that starts as a reliable local two-player experience and can later evolve into online multiplayer.
+Build a browser-based checkers game that begins as a reliable human-versus-computer experience and can later evolve into online multiplayer.
 
-## MVP scope
-The first milestone is a playable local game in the browser.
-
-### Required for MVP
+## Implemented MVP
 - Render an 8×8 checkers board.
 - Place pieces in the standard starting positions.
-- Allow two players to take turns on one device.
+- Let the human play red against a computer opponent playing black.
 - Validate legal diagonal moves.
 - Support captures.
-- Enforce forced captures when available.
+- Enforce mandatory captures.
 - Support multi-capture sequences.
 - Promote pieces to kings.
-- Detect win conditions.
+- Detect wins when a side has no pieces or no legal moves.
 - Show whose turn it is.
+- Block human input while the computer is thinking.
 - Provide a restart button.
 
-### Out of scope for MVP
+## Current ruleset
+The MVP uses English checkers rules:
+- Regular pieces move diagonally forward by one square.
+- Regular pieces capture diagonally forward.
+- Kings move and capture one square diagonally in either direction.
+- Captures are mandatory.
+- Multi-capture sequences must be completed.
+
+## Computer opponent
+The computer:
+- Generates complete legal turns, including forced multi-capture sequences.
+- Evaluates board positions using material, king value, progress, center control, and mobility.
+- Looks one human reply ahead before selecting a move.
+- Breaks ties randomly so repeated games are not fully deterministic.
+
+## Out of scope for this MVP
 - Online multiplayer.
 - User accounts.
 - Matchmaking.
 - Rating system.
 - Chat.
 - Persistent game history.
+- Advanced difficulty levels.
 
 ## Later milestones
-### Milestone 2 — Online multiplayer
+### Milestone 2 — Browser testing and deployment
+- Run manual browser tests for captures, promotions, blocked positions, restart behavior, and mobile layout.
+- Publish through GitHub Pages.
+
+### Milestone 3 — Online multiplayer
 - Create and join rooms.
 - Synchronize moves through WebSocket transport.
 - Handle disconnects and reconnects.
 - Validate moves on the server.
 
-### Milestone 3 — Product layer
+### Milestone 4 — Product layer
 - User accounts.
 - Match history.
 - Ratings.
 - Public and private games.
 - Basic moderation tools.
 
-## Initial technical direction
+## Technical direction
 Keep the first version intentionally small:
 - HTML
 - CSS
@@ -53,9 +71,3 @@ Keep the first version intentionally small:
 
 ## Repository entrypoint
 Start here when working on the project.
-
-## Next implementation task
-Create the local playable MVP with:
-- `index.html`
-- `styles.css`
-- `app.js`
