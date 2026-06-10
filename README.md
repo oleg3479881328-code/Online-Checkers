@@ -13,8 +13,14 @@ You play red against a computer opponent playing black. Online multiplayer will 
 - Mandatory captures
 - Multi-capture sequences
 - King promotion
+- Best move hint highlight
 - Win detection when a side has no pieces or no legal moves
 - Restart button
+
+## Move hints
+- Yellow squares show all legal targets for the selected piece.
+- Green square shows the suggested best target according to the current board evaluation.
+- If several targets are equally good, all of them can be highlighted green.
 
 ## Rulesets
 ### English checkers
